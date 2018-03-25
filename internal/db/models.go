@@ -1,9 +1,11 @@
 package db
 
+import "time"
+
 type GdaxOrderBook struct {
 	ID uint 			`gorm:"primary_key"`
 	MarketID uint 		`gorm:"index"`
-	Time int64			`gorm:"index"`
+	Time time.Time			`gorm:"index"`
 }
 
 type GdaxOrder struct {
@@ -15,7 +17,7 @@ type GdaxOrder struct {
 	//however we should skimp on memory and not add those
 	//count int64
 	Quantity float64
-	Time int64			`gorm:"index"`
+	Time time.Time			`gorm:"index"`
 }
 
 type GdaxMarket struct {
@@ -29,5 +31,5 @@ type GdaxTicker struct {
 	MarketID uint		`gorm:"index"`
 	BestBid float64
 	BestAsk float64
-	Time int64			`gorm:"index"`
+	Time time.Time		`gorm:"index"`
 }

@@ -4,11 +4,10 @@ import (
 	"github.com/jinzhu/gorm"
 	"time"
 	"strings"
-	"fmt"
 )
 
 func CreateOrderbook (gorm gorm.DB, market *GdaxMarket) *GdaxOrderBook{
-	orderbook := GdaxOrderBook{0, market.ID, int64(time.Now().Unix())}
+	orderbook := GdaxOrderBook{0, market.ID, time.Now()}
 	err := gorm.Create(&orderbook).Error
 	if err != nil{
 		panic(err)
@@ -29,7 +28,7 @@ func CreateMarket(gorm gorm.DB, ticker string, quote string) *GdaxMarket {
 }
 
 func AddOrder(gorm gorm.DB, book GdaxOrderBook, buy bool, rate float64, quantity float64, time time.Time){
-	order := GdaxOrder{0, book.ID, buy, rate, quantity, int64(time.Unix())}
+	order := GdaxOrder{0, book.ID, buy, rate, quantity, time}
 	err := gorm.Create(&order).Error
 	if err != nil{
 		panic(err)
@@ -37,7 +36,7 @@ func AddOrder(gorm gorm.DB, book GdaxOrderBook, buy bool, rate float64, quantity
 }
 
 func AddTicker(gorm gorm.DB, market *GdaxMarket, bestBid float64, bestAsk float64, time time.Time){
-	ticker := GdaxTicker{0, market.ID, bestBid, bestAsk, int64(time.Unix())}
+	ticker := GdaxTicker{0, market.ID, bestBid, bestAsk, time}
 	err := gorm.Create(&ticker).Error
 	if err != nil{
 		panic(err)
