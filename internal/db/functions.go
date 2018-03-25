@@ -27,8 +27,8 @@ func CreateMarket(gorm gorm.DB, ticker string, quote string) *GdaxMarket {
 	return &market
 }
 
-func AddOrder(gorm gorm.DB, book GdaxOrderBook, buy bool, rate float64, quantity float64, time time.Time){
-	order := GdaxOrder{0, book.ID, buy, rate, quantity, time}
+func AddOrder(gorm gorm.DB, book GdaxOrderBook, buy bool, rate float64, quantity float64, ){
+	order := GdaxOrder{0, book.ID, buy, rate, quantity, time.Now()}
 	err := gorm.Create(&order).Error
 	if err != nil{
 		panic(err)

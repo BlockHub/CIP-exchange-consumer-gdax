@@ -65,7 +65,7 @@ func (w Worker) start (){
 				if err != nil{
 					panic(err)
 				}
-				db.AddOrder(w.gorm, *w.orderbook, false, price, quantity, message.Time.Time())
+				db.AddOrder(w.gorm, *w.orderbook, false, price, quantity)
 			}
 			for _, ask := range message.Bids{
 				price, err := strconv.ParseFloat(ask[0], 64)
@@ -76,7 +76,7 @@ func (w Worker) start (){
 				if err != nil{
 					panic(err)
 				}
-				db.AddOrder(w.gorm, *w.orderbook, true, price, quantity, message.Time.Time())
+				db.AddOrder(w.gorm, *w.orderbook, true, price, quantity)
 			}
 		}
 
@@ -96,7 +96,7 @@ func (w Worker) start (){
 				if err != nil{
 					panic(err)
 				}
-				db.AddOrder(w.gorm, *w.orderbook, buy, price, quantity, message.Time.Time())
+				db.AddOrder(w.gorm, *w.orderbook, buy, price, quantity)
 			}
 		}
 	}
