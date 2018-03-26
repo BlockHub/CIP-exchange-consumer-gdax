@@ -35,6 +35,23 @@ func main() {
 	defer gormdb.Close()
 	gormdb.AutoMigrate(&db.GdaxOrderBook{}, &db.GdaxOrder{}, &db.GdaxMarket{}, &db.GdaxTicker{})
 
+	err = gormdb.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;").Error
+	if err != nil{
+		panic(err)
+	}
+	err = gormdb.Exec("SELECT create_hypertable('gdax_orders', 'time', if_not_exists => TRUE)").Error
+	if err != nil{
+		panic(err)
+	}
+	err = gormdb.Exec("SELECT create_hypertable('gdax_tickers', 'time', if_not_exists => TRUE)").Error
+	if err != nil{
+		panic(err)
+	}
+	err = gormdb.Exec("SELECT create_hypertable('gdax_order_books', 'time', if_not_exists => TRUE)").Error
+	if err != nil{
+		panic(err)
+	}
+
 	Products, err := client.GetProducts()
 	if err != nil{
 		panic(err)
