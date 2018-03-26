@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/gorm"
 	db "CIP-exchange-consumer-gdax/internal/db"
 	"strconv"
+	"time"
 )
 
 //main consumer, spawning a consumer for each trading pair
@@ -51,7 +52,8 @@ func (w Worker) start (){
 
 
 		if message.Type == "ticker"{
-			db.AddTicker(w.gorm, w.market, message.BestBid, message.BestAsk, message.Time.Time())
+			//message.Time.Time() is unreliable, so we have to use our own time
+			db.AddTicker(w.gorm, w.market, message.BestBid, message.BestAsk, time.Now())
 		}
 
 		// parsing initial data (only performed on worker startup
