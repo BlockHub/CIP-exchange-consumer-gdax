@@ -8,6 +8,7 @@ import (
 	db "CIP-exchange-consumer-gdax/internal/db"
 	"strconv"
 	"time"
+	"log"
 )
 
 //main consumer, spawning a consumer for each trading pair
@@ -61,22 +62,22 @@ func (w Worker) start (){
 			for _, ask := range message.Asks{
 				price, err := strconv.ParseFloat(ask[0], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				quantity, err := strconv.ParseFloat(ask[1], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				db.AddOrder(w.gorm, *w.orderbook, false, price, quantity)
 			}
 			for _, ask := range message.Bids{
 				price, err := strconv.ParseFloat(ask[0], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				quantity, err := strconv.ParseFloat(ask[1], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				db.AddOrder(w.gorm, *w.orderbook, true, price, quantity)
 			}
@@ -92,11 +93,11 @@ func (w Worker) start (){
 
 				price, err := strconv.ParseFloat(change[1], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				quantity, err := strconv.ParseFloat(change[2], 64)
 				if err != nil{
-					panic(err)
+					log.Panic(err)
 				}
 				db.AddOrder(w.gorm, *w.orderbook, buy, price, quantity)
 			}
