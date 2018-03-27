@@ -10,54 +10,66 @@ import(
 	"github.com/joho/godotenv"
 	"log"
 	"CIP-exchange-consumer-gdax/internal/db"
+	"github.com/getsentry/raven-go"
 )
 
-
-
-func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+func init(){
+	useDotenv := true
+	if os.Getenv("PRODUCTION") == "true"{
+		useDotenv = false
 	}
 
+	// this loads all the constants stored in the .env file (not suitable for production)
+	// set variables in supervisor then.
+	if useDotenv {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal(err)
+			panic(err)
+		}
+	}
+	raven.SetDSN(os.Getenv("RAVEN_DSN"))
+}
+
+func main() {
 	var wsDialer ws.Dialer
 	client := gdax.NewClient("", "", "")
 
-	wsConn, _, err := wsDialer.Dial("wss://ws-feed.gdax.com", nil)
-	if err != nil {
-		println(err.Error())
-	}
-
 	gormdb, err := gorm.Open(os.Getenv("DB"), os.Getenv("DB_URL"))
 	if err != nil {
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 	defer gormdb.Close()
 	err = gormdb.AutoMigrate(&db.GdaxOrderBook{}, &db.GdaxOrder{}, &db.GdaxMarket{}, &db.GdaxTicker{}).Error
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 
 	err = gormdb.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;").Error
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 	err = gormdb.Exec("SELECT create_hypertable('gdax_orders', 'time', 'orderbook_id', if_not_exists => TRUE)").Error
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 	err = gormdb.Exec("SELECT create_hypertable('gdax_tickers', 'time', 'market_id', if_not_exists => TRUE)").Error
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 	err = gormdb.Exec("SELECT create_hypertable('gdax_order_books', 'time', 'market_id', if_not_exists => TRUE)").Error
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
+	}
+
+	wsConn, _, err := wsDialer.Dial("wss://ws-feed.gdax.com", nil)
+	if err != nil {
+		raven.CaptureErrorAndWait(err, nil)
 	}
 
 	Products, err := client.GetProducts()
 	if err != nil{
-		panic(err)
+		raven.CaptureErrorAndWait(err, nil)
 	}
 
 	// gdax offers only 8 products, will be a while until they offer 100
@@ -82,7 +94,7 @@ func main() {
 	}
 
 	if err := wsConn.WriteJSON(subscribe); err != nil {
-		println(err.Error())
+		raven.CaptureErrorAndWait(err, nil)
 	}
 
 	message := gdax.Message{}
@@ -96,7 +108,7 @@ func main() {
 func ReadWSConn(conn *ws.Conn, message gdax.Message, gormdb *gorm.DB, chanGuide map[string]chan gdax.Message){
 	for true {
 		if err := conn.ReadJSON(&message); err != nil {
-			panic(err)
+			log.Panic(err)
 
 		}
 		consumer.MessageConsumer(message, *gormdb, 3, chanGuide)
