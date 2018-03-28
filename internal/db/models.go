@@ -4,13 +4,13 @@ import "time"
 
 type GdaxOrderBook struct {
 	ID uint 			`gorm:"primary_key"`
-	MarketID uint 		`gorm:"index"`
+	MarketID uint
 	Time time.Time		`gorm:"primary_key"`
 }
 
 type GdaxOrder struct {
 	ID uint 			`gorm:"primary_key"`
-	OrderbookID uint 	`gorm:"index"`
+	OrderbookID uint
 	Buy bool
 	Rate float64
 	//bitfinex supports giving the total number of sell/buyorders.
@@ -28,7 +28,7 @@ type GdaxMarket struct {
 
 type GdaxTicker struct {
 	ID  uint 			`gorm:"primary_key"`
-	MarketID uint		`gorm:"index"`
+	MarketID uint
 	BestBid float64
 	BestAsk float64
 	Time time.Time		`gorm:"primary_key"`
