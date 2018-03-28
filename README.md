@@ -18,4 +18,4 @@ During prototyping we don't work with binary releases. Just create a binary usin
     env GOOS=linux GOARCH=amd64 go build main.go
 ```
 
-rename the binary to process (for reasons of automatic deployment)
+rename the binary to consumer.bin (for reasons of automatic deployment)
