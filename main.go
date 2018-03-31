@@ -11,6 +11,8 @@ import(
 	"log"
 	"CIP-exchange-consumer-gdax/internal/db"
 	"github.com/getsentry/raven-go"
+	"strconv"
+	"CIP-exchange-consumer-gdax/pushers"
 )
 
 func init(){
@@ -35,32 +37,44 @@ func main() {
 	var wsDialer ws.Dialer
 	client := gdax.NewClient("", "", "")
 
-	gormdb, err := gorm.Open(os.Getenv("DB"), os.Getenv("DB_URL"))
+	localdb, err := gorm.Open(os.Getenv("DB"), os.Getenv("DB_URL"))
 	if err != nil {
 		raven.CaptureErrorAndWait(err, nil)
 	}
-	defer gormdb.Close()
-	err = gormdb.AutoMigrate(&db.GdaxOrderBook{}, &db.GdaxOrder{}, &db.GdaxMarket{}, &db.GdaxTicker{}).Error
+	defer localdb.Close()
+	err = localdb.AutoMigrate(&db.GdaxOrderBook{}, &db.GdaxOrder{}, &db.GdaxMarket{}, &db.GdaxTicker{}).Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
 
-	err = gormdb.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;").Error
+	remotedb, err := gorm.Open(os.Getenv("R_DB"), os.Getenv("R_DB_URL"))
+	if err != nil {
+		raven.CaptureErrorAndWait(err, nil)
+	}
+	defer remotedb.Close()
+
+	err = localdb.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;").Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
-	err = gormdb.Exec("SELECT create_hypertable('gdax_orders', 'time', 'orderbook_id', if_not_exists => TRUE)").Error
+	err = localdb.Exec("SELECT create_hypertable('gdax_orders', 'time', 'orderbook_id', if_not_exists => TRUE)").Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
-	err = gormdb.Exec("SELECT create_hypertable('gdax_tickers', 'time', 'market_id', if_not_exists => TRUE)").Error
+	err = localdb.Exec("SELECT create_hypertable('gdax_tickers', 'time', 'market_id', if_not_exists => TRUE)").Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
-	err = gormdb.Exec("SELECT create_hypertable('gdax_order_books', 'time', 'market_id', if_not_exists => TRUE)").Error
+	err = localdb.Exec("SELECT create_hypertable('gdax_order_books', 'time', 'market_id', if_not_exists => TRUE)").Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
+
+	//start a replication worker
+	limit,  err:= strconv.ParseInt(os.Getenv("REPLICATION_LIMIT"), 10, 64)
+	replicator := pushers.Replicator{Local:*localdb, Remote:*remotedb, Limit:limit}
+	go replicator.Start()
+
 
 	wsConn, _, err := wsDialer.Dial("wss://ws-feed.gdax.com", nil)
 	if err != nil {
@@ -101,7 +115,7 @@ func main() {
 	// we pass a map to keep track of the different worker channnels to the message
 	//consumer
 	chanGuide := make(map[string]chan gdax.Message)
-	ReadWSConn(wsConn, message, gormdb, chanGuide)
+	ReadWSConn(wsConn, message, localdb, chanGuide)
 	//block the main process
 }
 
