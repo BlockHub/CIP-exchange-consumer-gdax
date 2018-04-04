@@ -6,6 +6,7 @@ import (
 	"CIP-exchange-consumer-gdax/internal/db"
 	"fmt"
 	"time"
+	"strings"
 )
 
 
@@ -23,6 +24,24 @@ type Replicator struct {
 	Limit int64	// max rows to be fetched from remote and inserted (should be as high as possible)
 
 }
+// send the initial Markets data to remote
+func (r *Replicator) PushMarkets() {
+	markets := []db.GdaxMarket{}
+	r.Local.Limit(r.Limit).Find(&markets)
+
+	// we don't delete the local copies of the markets, as they are needed for FK relations
+	// and don't take up much space
+	for _, market := range markets {
+		err := r.Remote.Create(&market).Error
+		if err != nil {
+			if ! strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				log.Panic(err)
+			}
+		}
+	}
+}
+
+
 // copy the markets table (should only be done once in a while, as new markets
 // are only added once every few months.
 func(r *Replicator) Start(){
@@ -40,16 +59,32 @@ func (r *Replicator) Replicate_ticker() {
 
 	orders := []db.GdaxOrder{}
 	tickers := []db.GdaxTicker{}
+	books := []db.GdaxOrderBook{}
 
 
 
 	r.Local.Limit(r.Limit).Find(&orders)
 	r.Local.Limit(r.Limit).Find(&tickers)
+	r.Local.Limit(r.Limit).Order("time asc").Find(&books)
+
 
 	if (len(orders) == 0) || (len(tickers) == 0){
 		time.Sleep(10* time.Second)
 		return
 	}
+
+	for i, book := range books	{
+		if i == len(books) - 1 { break }
+		err := backup.Create(&book).Error
+		if err != nil{
+			panic(err)
+		}
+		err = local.Delete(&book).Error
+		if err != nil{
+			panic(err)
+		}
+	}
+
 
 	for _, order := range orders {
 		err := backup.Create(&order).Error
