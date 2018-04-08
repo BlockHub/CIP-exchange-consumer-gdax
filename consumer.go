@@ -42,33 +42,16 @@ func main() {
 		raven.CaptureErrorAndWait(err, nil)
 	}
 	defer localdb.Close()
-	err = localdb.AutoMigrate(&db.GdaxOrderBook{}, &db.GdaxOrder{}, &db.GdaxMarket{}, &db.GdaxTicker{}).Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
-
 	remotedb, err := gorm.Open(os.Getenv("R_DB"), os.Getenv("R_DB_URL"))
 	if err != nil {
 		raven.CaptureErrorAndWait(err, nil)
 	}
 	defer remotedb.Close()
 
-	err = localdb.Exec("CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE;").Error
-	if err != nil{
-		raven.CaptureErrorAndWait(err, nil)
-	}
-	err = localdb.Exec("SELECT create_hypertable('gdax_orders', 'time', 'orderbook_id', if_not_exists => TRUE)").Error
-	if err != nil{
-		raven.CaptureErrorAndWait(err, nil)
-	}
-	err = localdb.Exec("SELECT create_hypertable('gdax_tickers', 'time', 'market_id', if_not_exists => TRUE)").Error
-	if err != nil{
-		raven.CaptureErrorAndWait(err, nil)
-	}
-	err = localdb.Exec("SELECT create_hypertable('gdax_order_books', 'time', 'market_id', if_not_exists => TRUE)").Error
-	if err != nil{
-		raven.CaptureErrorAndWait(err, nil)
-	}
+	db.Migrate(*localdb, *remotedb)
 
 	//start a replication worker
 	limit,  err:= strconv.ParseInt(os.Getenv("REPLICATION_LIMIT"), 10, 64)
