@@ -4,20 +4,21 @@ import (
 	"github.com/jinzhu/gorm"
 	"log"
 	"CIP-exchange-consumer-gdax/internal/db"
-	"fmt"
-	"time"
 	"strings"
+	"fmt"
 )
 
 
 
 type Replicator struct {
+	//Used for logging purposes
+	Name string
 	// local db
 	Local gorm.DB
 
 	//remote DB (the data warehouse)
 	Remote gorm.DB
-
+	DBlink string
 	//schema related settings
 
 	//replication related settings
@@ -40,84 +41,57 @@ func (r *Replicator) PushMarkets() {
 		}
 	}
 }
-
-
-// copy the markets table (should only be done once in a while, as new markets
-// are only added once every few months.
-func(r *Replicator) Start(){
-	for true {
-		fmt.Println("replicating")
-		r.Replicate_ticker()
+// Create a persistent dblink
+func (r *Replicator) Link() {
+	err := r.Remote.Exec(
+		fmt.Sprintf(`SELECT dblink_connect('%s', '%s');`, r.Name, r.DBlink)).Error
+	if err != nil{
+		log.Panic(err)
 	}
 }
 
-// copy the ticker data from a chunk
-func (r *Replicator) Replicate_ticker() {
+// close the persistent dblink
+func (r *Replicator) Unlink(){
+	err := r.Remote.Exec(
+		fmt.Sprintf(`SELECT dblink_disconnect('%s');`, r.Name)).Error
+	if err != nil{
+		log.Panic(err)
+	}
+}
+
+func (r *Replicator) SendOrders(){
+	err := r.Remote.Exec(
+		fmt.Sprintf(
+			`INSERT INTO gdax_orders (id, orderbook_id, rate, quantity, time, buy)
+					SELECT *
+					FROM dblink(
+						'%s',
+						' DELETE FROM gdax_orders WHERE id in (SELECT id FROM gdax_orders ORDER BY time ASC LIMIT %d) RETURNING id, orderbook_id, rate, quantity, time, buy;'
+					) AS deleted (id INT, orderbook_id INT, rate NUMERIC, quantity NUMERIC, time TIMESTAMP, buy BOOLEAN)`, r.Name, r.Limit)).Error
+	if err != nil{
+		log.Panic(err)
+	}
+
+}
+
+func (r *Replicator) SendTickers(){
+	err := r.Remote.Exec(
+		fmt.Sprintf(
+			`INSERT INTO gdax_tickers (id, market_id, best_bid, best_buy, time)
+					SELECT *
+					FROM dblink(
+						'%s',
+						' DELETE FROM gdax_tickers WHERE id in (SELECT id FROM gdax_tickers ORDER BY time ASC LIMIT %d) RETURNING id, market_id, price, best_bid, best_buy, time;'
+					) AS deleted (id INT, market_id INT, best_bid NUMERIC, best_buy NUMERIC, time TIMESTAMP)`, r.Name, r.Limit)).Error
+	if err != nil{
+		log.Panic(err)
+	}
+}
+
+func (r *Replicator) Start() {
 	// an out interface to store lots of Order objects
-	backup := r.Remote.Begin()
-	local := r.Local.Begin()
-
-	orders := []db.GdaxOrder{}
-	tickers := []db.GdaxTicker{}
-	books := []db.GdaxOrderBook{}
-
-
-
-	r.Local.Limit(r.Limit).Find(&orders)
-	r.Local.Limit(r.Limit).Find(&tickers)
-	r.Local.Limit(r.Limit).Order("time asc").Find(&books)
-
-
-	if (len(orders) == 0) || (len(tickers) == 0){
-		time.Sleep(10* time.Second)
-		return
-	}
-
-	for i, book := range books	{
-		if i == len(books) - 1 { break }
-		err := backup.Create(&book).Error
-		if err != nil{
-			panic(err)
-		}
-		err = local.Delete(&book).Error
-		if err != nil{
-			panic(err)
-		}
-	}
-
-
-	for _, order := range orders {
-		err := backup.Create(&order).Error
-		if err != nil{
-			panic(err)
-		}
-		err = local.Delete(&order).Error
-		if err != nil{
-			panic(err)
-		}
-	}
-
-	for _, ticker := range tickers {
-		err := backup.Create(&ticker).Error
-		if err != nil{
-			panic(err)
-		}
-		err = local.Delete(&ticker).Error
-		if err != nil{
-			panic(err)
-		}
-	}
-
-	err := backup.Commit().Error
-	if err != nil{
-		local.Rollback()
-		backup.Rollback()
-		log.Panic(err)
-	}
-
-	err = local.Commit().Error
-	if err != nil{
-		local.Rollback()
-		log.Panic(err)
+	for true {
+		r.SendTickers()
+		r.SendOrders()
 	}
 }
