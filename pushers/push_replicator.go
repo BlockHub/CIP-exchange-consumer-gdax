@@ -77,12 +77,26 @@ func (r *Replicator) SendOrders(){
 func (r *Replicator) SendTickers(){
 	err := r.Remote.Exec(
 		fmt.Sprintf(
-			`INSERT INTO gdax_tickers (id, market_id, best_bid, best_buy, time)
+			`INSERT INTO gdax_tickers (id, market_id, best_bid, best_ask, time)
 					SELECT *
 					FROM dblink(
 						'%s',
-						' DELETE FROM gdax_tickers WHERE id in (SELECT id FROM gdax_tickers ORDER BY time ASC LIMIT %d) RETURNING id, market_id, price, best_bid, best_buy, time;'
-					) AS deleted (id INT, market_id INT, best_bid NUMERIC, best_buy NUMERIC, time TIMESTAMP)`, r.Name, r.Limit)).Error
+						' DELETE FROM gdax_tickers WHERE id in (SELECT id FROM gdax_tickers ORDER BY time ASC LIMIT %d) RETURNING id, market_id, best_bid, best_ask, time;'
+					) AS deleted (id INT, market_id INT, best_bid NUMERIC, best_ask NUMERIC, time TIMESTAMP)`, r.Name, r.Limit)).Error
+	if err != nil{
+		log.Panic(err)
+	}
+}
+
+func (r *Replicator) SendTrade(){
+	err := r.Remote.Exec(
+		fmt.Sprintf(
+			`INSERT INTO gdax_trades (id, market_id, size, price, buy, time)
+					SELECT *
+					FROM dblink(
+						'%s',
+						' DELETE FROM gdax_trades WHERE id in (SELECT id FROM gdax_trades ORDER BY time ASC LIMIT %d) RETURNING id, market_id, price, size, buy, time;'
+					) AS deleted (id INT, market_id INT, size NUMERIC, price NUMERIC, buy BOOLEAN, time TIMESTAMP)`, r.Name, r.Limit)).Error
 	if err != nil{
 		log.Panic(err)
 	}
@@ -93,5 +107,6 @@ func (r *Replicator) Start() {
 	for true {
 		r.SendTickers()
 		r.SendOrders()
+		r.SendTrade()
 	}
 }

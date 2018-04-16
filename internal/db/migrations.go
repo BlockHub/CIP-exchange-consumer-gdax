@@ -1,14 +1,17 @@
 package db
 
 import (
-"github.com/getsentry/raven-go"
-"github.com/jinzhu/gorm"
-
+	"github.com/getsentry/raven-go"
+	"github.com/jinzhu/gorm"
 )
 
 func Migrate(Local gorm.DB, Remote gorm.DB){
 	// migrations are only performed by GORM if a table/column/index does not exist.
-	err := Local.AutoMigrate(&GdaxMarket{}, &GdaxTicker{}, &GdaxOrder{}, &GdaxOrderBook{}).Error
+	err := Local.AutoMigrate(	&GdaxMarket{},
+								&GdaxTicker{},
+								&GdaxOrder{},
+								&GdaxTrade{},
+								&GdaxOrderBook{}).Error
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}
@@ -34,7 +37,13 @@ func Migrate(Local gorm.DB, Remote gorm.DB){
 		raven.CaptureErrorAndWait(err, nil)
 	}
 
-	err = Remote.AutoMigrate(&GdaxMarket{}, &GdaxTicker{}, &GdaxOrder{}, &GdaxOrderBook{}).Error
+	err = Remote.AutoMigrate(
+		&GdaxMarket{},
+		&GdaxTicker{},
+		&GdaxOrder{},
+		&GdaxTrade{},
+		&GdaxOrderBook{}).Error
+
 	if err != nil{
 		raven.CaptureErrorAndWait(err, nil)
 	}

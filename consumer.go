@@ -11,8 +11,6 @@ import(
 	"log"
 	"CIP-exchange-consumer-gdax/internal/db"
 	"github.com/getsentry/raven-go"
-	"strconv"
-	"CIP-exchange-consumer-gdax/pushers"
 )
 
 func init(){
@@ -53,12 +51,6 @@ func main() {
 
 	db.Migrate(*localdb, *remotedb)
 
-	//start a replication worker
-	limit,  err:= strconv.ParseInt(os.Getenv("REPLICATION_LIMIT"), 10, 64)
-	replicator := pushers.Replicator{Local:*localdb, Remote:*remotedb, Limit:limit}
-	go replicator.PushMarkets()
-	go replicator.Start()
-
 
 	wsConn, _, err := wsDialer.Dial("wss://ws-feed.gdax.com", nil)
 	if err != nil {
@@ -86,6 +78,10 @@ func main() {
 			},
 			gdax.MessageChannel{
 				Name: "ticker",
+				ProductIds: ProductIds,
+			},
+			gdax.MessageChannel{
+				Name: "matches",
 				ProductIds: ProductIds,
 			},
 		},

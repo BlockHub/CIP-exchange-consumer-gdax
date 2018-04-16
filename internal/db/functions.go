@@ -45,3 +45,17 @@ func AddTicker(gorm gorm.DB, market *GdaxMarket, bestBid float64, bestAsk float6
 		log.Panic(err)
 	}
 }
+
+func AddTrade(gorm gorm.DB, market *GdaxMarket, size float64, price float64, side string, time time.Time){
+	buy := true
+
+	if side == "sell"{
+		buy = false
+	}
+
+	trade := GdaxTrade{0, market.ID, size, price, buy, time}
+	err := gorm.Create(&trade).Error
+	if err != nil{
+		log.Panic(err)
+	}
+}

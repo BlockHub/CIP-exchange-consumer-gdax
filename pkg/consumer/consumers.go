@@ -49,8 +49,10 @@ type Worker struct{
 }
 func (w Worker) start (){
 	for true {
-		message := <-w.messages
 
+		message := <-w.messages
+		if message.Type == "match"{
+			db.AddTrade(w.gorm, w.market, message.Size, message.Price, message.Side, message.Time.Time())}
 
 		if message.Type == "ticker"{
 			//message.Time.Time() is unreliable, so we have to use our own time
